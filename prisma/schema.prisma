@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id       String @id @default(cuid())
+  username String @unique
+  password String
+}
+
+model Hero {
+  id                String @id @default(cuid())
+  name              String
+  identityStatement String
+  valueProposition  String
+  ctaPrimaryText    String
+  ctaPrimaryLink    String
+  ctaSecondaryText  String
+  ctaSecondaryLink  String
+  isAvailable       Boolean @default(true)
+  scrollCtaText     String  @default("Scroll")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  techStack   String   // Stored as JSON or comma-separated
+  outcome     String
+  demoLink    String?
+  githubLink  String?
+  imageUrl    String?
+  isPinned    Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model About {
+  id       String @id @default(cuid())
+  content  String
+  imageUrl String?
+}
+
+model SkillCategory {
+  id    String  @id @default(cuid())
+  name  String
+  order Int     @default(0)
+  skills Skill[]
+}
+
+model Skill {
+  id         String        @id @default(cuid())
+  name       String
+  level      Int           @default(5)
+  order      Int           @default(0)
+  categoryId String
+  category   SkillCategory @relation(fields: [categoryId], references: [id])
+}
+
+model TimelineItem {
+  id          String @id @default(cuid())
+  title       String
+  type        String // "education", "internship", "milestone"
+  date        String
+  description String
+  order       Int    @default(0)
+}
+
+model Achievement {
+  id          String  @id @default(cuid())
+  title       String
+  type        String
+  date        String
+  description String
+  imageUrl    String?
+  isPinned    Boolean @default(false)
+  order       Int     @default(0)
+}
+
+model Blog {
+  id          String   @id @default(cuid())
+  title       String
+  excerpt     String
+  content     String
+  readingTime String
+  date        DateTime @default(now())
+  category    String
+  coverImage  String?
+  isPinned    Boolean  @default(false)
+  isPublished Boolean  @default(false)
+  order       Int      @default(0)
+}
+
+model Testimonial {
+  id            String  @id @default(cuid())
+  quote         String
+  authorName    String
+  authorRole    String
+  authorContext String?
+  order         Int     @default(0)
+}
+
+model Contact {
+  id       String @id @default(cuid())
+  email    String
+  linkedin String
+  github   String
+  twitter  String?
+}
