@@ -4,6 +4,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcrypt";
+import type { Session } from "next-auth";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -63,18 +64,9 @@ export const authOptions: NextAuthOptions = {
     signIn: "/admin/login",
   },
   callbacks: {
-    async session({
-      session,
-      token,
-    }: {
-      session: { user: { name?: string } };
-      token: {
-        sub?: string;
-        name?: string;
-      };
-    }) {
+    async session({ session, token }: { session: Session; token: any }) {
       if (session?.user && token.sub) {
-        session.user.name = token.name;
+        session.user.name = token.name as string;
       }
       return session;
     },

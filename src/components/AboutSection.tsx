@@ -61,9 +61,9 @@ export default function AboutSection<T extends AboutData>({
                 >
                   <Image
                     src={
-                      "https://drive.google.com/file/d/1NrxOlepIvL_EairtXYXcO0o30O0gat18/view?usp=drive_link"
+                      "https://drive.google.com/uc?export=view&id=1NrxOlepIvL_EairtXYXcO0o30O0gat18"
                       //  ||aboutData.imageUrl
-                    }
+                    } 
                     alt="About Me"
                     fill
                     sizes="(max-width: 768px) 100vw, 400px"

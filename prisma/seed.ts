@@ -59,7 +59,8 @@ async function main() {
   if (aboutCount === 0) {
     await prisma.about.create({
       data: {
-        content: "I'm a passionate developer specializing in building beautiful, functional, and responsive web applications. I love turning complex problems into simple, elegant solutions.",
+        content:
+          "I'm a passionate developer specializing in building beautiful, functional, and responsive web applications. I love turning complex problems into simple, elegant solutions.",
       },
     });
     console.log("Seed: About section created.");

@@ -19,6 +19,7 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactCompiler: true,
+  allowedDevOrigins: ["10.157.97.109"],
   images: {
     remotePatterns: [
       {
