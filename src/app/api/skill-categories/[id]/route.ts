@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { SkillCategory, Skill } from "@/lib/models";
 import {
   invalidResourceIdResponse,
   notFoundResponse,
@@ -9,8 +11,8 @@ import {
 } from "@/lib/api-security";
 
 export async function DELETE(
- req: Request,
- props: { params: Promise<{ id: string }> }
+  req: Request,
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
     const authCheck = await requireAdminRequest(req);
@@ -19,18 +21,17 @@ export async function DELETE(
     const idResult = validateResourceId((await props.params).id);
     if (!idResult.success) return invalidResourceIdResponse();
 
-    const existing = await prisma.skillCategory.findUnique({
-      where: { id: idResult.data },
-    });
+    await connectDB();
+    const existing = await SkillCategory.findById(idResult.data);
     if (!existing) return notFoundResponse("Skill category");
 
-    await prisma.$transaction([
-      prisma.skill.deleteMany({ where: { categoryId: idResult.data } }),
-      prisma.skillCategory.delete({ where: { id: idResult.data } }),
-    ]);
+    // Delete all skills in this category first, then delete the category
+    await Skill.deleteMany({ categoryId: idResult.data });
+    await SkillCategory.findByIdAndDelete(idResult.data);
 
+    revalidatePath("/");
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return serverErrorResponse("Failed to delete category");
   }
 }

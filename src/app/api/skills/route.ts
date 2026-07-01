@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Skill } from "@/lib/models";
 import { skillSchema } from "@/lib/validations";
 import {
   readJsonBody,
@@ -17,14 +19,14 @@ export async function POST(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = skillSchema.safeParse(bodyResult.data);
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
+    if (!validation.success) return validationErrorResponse(validation.error);
 
-    const data = validation.data;
-    const newSkill = await prisma.skill.create({ data });
-    return NextResponse.json(newSkill);
-  } catch (error) {
+    await connectDB();
+    const created = await new Skill(validation.data).save();
+    const obj = created.toJSON();
+    revalidatePath("/");
+    return NextResponse.json({ ...obj, id: obj._id?.toString() ?? obj.id, categoryId: obj.categoryId?.toString() });
+  } catch {
     return serverErrorResponse("Failed to create skill");
   }
 }

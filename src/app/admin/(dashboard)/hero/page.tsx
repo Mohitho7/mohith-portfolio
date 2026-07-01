@@ -1,4 +1,5 @@
-import prisma from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { Hero } from "@/lib/models";
 import HeroForm from "./HeroForm";
 import styles from "../admin.module.css";
 import { requireAdminPageSession } from "@/lib/admin-session";
@@ -7,7 +8,9 @@ export const metadata = { title: "Manage Hero | Admin" };
 
 export default async function AdminHeroPage() {
   await requireAdminPageSession();
-  const hero = await prisma.hero.findFirst();
+  await connectDB();
+  const heroDoc = await Hero.findOne().lean();
+  const hero = heroDoc ? JSON.parse(JSON.stringify(heroDoc)) : null;
 
   return (
     <div className={styles.dashboardOverview}>

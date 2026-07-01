@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Achievement } from "@/lib/models";
 import { achievementSchema } from "@/lib/validations";
 import {
   invalidResourceIdResponse,
@@ -25,30 +27,21 @@ export async function PUT(
     const bodyResult = await readJsonBody(pieces);
     if (!bodyResult.ok) return bodyResult.response;
 
-    const partialValidation = achievementSchema.partial().safeParse(bodyResult.data);
-    if (!partialValidation.success) {
-      return validationErrorResponse(partialValidation.error);
-    }
-
-    const existing = await prisma.achievement.findUnique({
-      where: { id: idResult.data },
-    });
+    await connectDB();
+    const existing = await Achievement.findById(idResult.data).lean();
     if (!existing) return notFoundResponse("Achievement");
 
-    const dataValidation = achievementSchema.safeParse({
-      ...existing,
-      ...partialValidation.data,
-    });
-    if (!dataValidation.success) {
-      return validationErrorResponse(dataValidation.error);
-    }
+    const partialValidation = achievementSchema.partial().safeParse(bodyResult.data);
+    if (!partialValidation.success) return validationErrorResponse(partialValidation.error);
 
-    const updated = await prisma.achievement.update({
-      where: { id: idResult.data },
-      data: dataValidation.data,
-    });
-    return NextResponse.json(updated);
-  } catch (error) {
+    const dataValidation = achievementSchema.safeParse({ ...existing, ...partialValidation.data });
+    if (!dataValidation.success) return validationErrorResponse(dataValidation.error);
+
+    const updated = await Achievement.findByIdAndUpdate(idResult.data, dataValidation.data, { new: true }).lean();
+    revalidatePath("/");
+    revalidatePath("/achievements");
+    return NextResponse.json({ ...updated, id: (updated as any)._id.toString() });
+  } catch {
     return serverErrorResponse("Failed to update achievement");
   }
 }
@@ -61,13 +54,14 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
     const idResult = validateResourceId((await props.params).id);
     if (!idResult.success) return invalidResourceIdResponse();
 
-    const deleted = await prisma.achievement.deleteMany({
-      where: { id: idResult.data },
-    });
-    if (!deleted.count) return notFoundResponse("Achievement");
+    await connectDB();
+    const deleted = await Achievement.findByIdAndDelete(idResult.data);
+    if (!deleted) return notFoundResponse("Achievement");
 
+    revalidatePath("/");
+    revalidatePath("/achievements");
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return serverErrorResponse("Failed to delete achievement");
   }
 }

@@ -1,15 +1,16 @@
+import { connectDB } from "@/lib/mongodb";
+import { TimelineItem } from "@/lib/models";
 import TimelineClient from "./TimelineClient";
 import styles from "../admin.module.css";
-import prisma from "@/lib/prisma";
 import { requireAdminPageSession } from "@/lib/admin-session";
 
 export const metadata = { title: "Manage Timeline | Admin" };
 
 export default async function AdminTimelinePage() {
   await requireAdminPageSession();
-  const initialItems = await prisma.timelineItem.findMany({
-    orderBy: { order: "asc" }
-  });
+  await connectDB();
+  const itemDocs = await TimelineItem.find().sort({ order: 1 }).lean();
+  const initialItems = JSON.parse(JSON.stringify(itemDocs));
 
   return (
     <div className={styles.dashboardOverview}>

@@ -1,4 +1,10 @@
-const SAFE_HTTP_PROTOCOLS = new Set(["http:", "https:"]);
+const SAFE_HTTP_PROTOCOLS = new Set(["https:"]);
+const SAFE_LOCALHOST_HOSTNAMES = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+]);
 
 function canParseUrl(value: string) {
   try {
@@ -8,9 +14,22 @@ function canParseUrl(value: string) {
   }
 }
 
+function isLocalhostUrl(parsed: URL) {
+  return SAFE_LOCALHOST_HOSTNAMES.has(parsed.hostname);
+}
+
 export function isSafeHttpUrl(value: string) {
   const parsed = canParseUrl(value);
-  return parsed !== null && SAFE_HTTP_PROTOCOLS.has(parsed.protocol);
+
+  if (!parsed) {
+    return false;
+  }
+
+  if (parsed.protocol === "https:") {
+    return true;
+  }
+
+  return parsed.protocol === "http:" && isLocalhostUrl(parsed);
 }
 
 export function isSafeAssetUrl(value: string) {
@@ -19,6 +38,17 @@ export function isSafeAssetUrl(value: string) {
 
 export function isSafeNavigationHref(value: string) {
   return value.startsWith("#") || value.startsWith("/") || isSafeHttpUrl(value);
+}
+
+export function sanitizeTextContent(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const normalized = value.replace(/[\u0000-\u001f\u007f]/g, " ");
+  const collapsed = normalized.replace(/\s+/g, " ").trim();
+
+  return collapsed.replace(/[<>]/g, "");
 }
 
 export function getSafeAssetUrl(value?: string | null) {
@@ -37,10 +67,7 @@ export function getSafeExternalHref(value?: string | null) {
   return isSafeHttpUrl(value) ? value : null;
 }
 
-export function getSafeNavigationHref(
-  value?: string | null,
-  fallback = "/",
-) {
+export function getSafeNavigationHref(value?: string | null, fallback = "/") {
   if (!value) {
     return fallback;
   }

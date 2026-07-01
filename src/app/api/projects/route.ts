@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Project } from "@/lib/models";
 import { projectSchema } from "@/lib/validations";
 import {
   readJsonBody,
@@ -8,13 +10,18 @@ import {
   validationErrorResponse,
 } from "@/lib/api-security";
 
+function lean(doc: any) {
+  if (!doc) return doc;
+  const obj = doc.toJSON ? doc.toJSON() : doc;
+  return { ...obj, id: obj._id?.toString() ?? obj.id };
+}
+
 export async function GET() {
   try {
-    const projects = await prisma.project.findMany({
-      orderBy: { order: "asc" }
-    });
-    return NextResponse.json(projects);
-  } catch (error) {
+    await connectDB();
+    const projects = await Project.find().sort({ order: 1 }).lean();
+    return NextResponse.json(projects.map((p: any) => ({ ...p, id: p._id.toString() })));
+  } catch {
     return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });
   }
 }
@@ -28,14 +35,14 @@ export async function POST(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = projectSchema.safeParse(bodyResult.data);
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
+    if (!validation.success) return validationErrorResponse(validation.error);
 
-    const data = validation.data;
-    const newProject = await prisma.project.create({ data });
-    return NextResponse.json(newProject);
-  } catch (error) {
+    await connectDB();
+    const created = await new Project(validation.data).save();
+    revalidatePath("/");
+    revalidatePath("/projects");
+    return NextResponse.json(lean(created));
+  } catch {
     return serverErrorResponse("Failed to create project");
   }
 }

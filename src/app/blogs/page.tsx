@@ -1,5 +1,6 @@
-export const dynamic = 'force-dynamic';
-import prisma from "@/lib/prisma";
+
+import { connectDB } from "@/lib/mongodb";
+import { Blog } from "@/lib/models";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
@@ -10,10 +11,8 @@ export const metadata = {
 };
 
 export default async function BlogsArchivePage() {
-  const blogs = await prisma.blog.findMany({
-    where: { isPublished: true },
-    orderBy: { date: "desc" }
-  });
+  await connectDB();
+  const blogs = await Blog.find({ isPublished: true }).sort({ date: -1 }).lean();
 
   return (
     <main style={{ width: "100%", overflowX: "hidden" }}>
@@ -24,8 +23,8 @@ export default async function BlogsArchivePage() {
         <p style={{ color: "var(--text-muted)", marginBottom: "48px", fontSize: "1.1rem" }}>All published thoughts, tutorials, and insights.</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "32px", marginBottom: "80px" }}>
-          {blogs.map((blog: any) => (
-            <Link href={`/blogs/${blog.id}`} key={blog.id}>
+          {(blogs as any[]).map((blog) => (
+            <Link href={`/blogs/${blog._id.toString()}`} key={blog._id.toString()}>
               <div 
                 className="glass-card hoverable-card"
                 style={{ display: "flex", flexDirection: "column", height: "100%", cursor: "pointer" }}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Blog } from "@/lib/models";
 import { blogSchema } from "@/lib/validations";
 import {
   invalidResourceIdResponse,
@@ -25,28 +27,22 @@ export async function PUT(
     const bodyResult = await readJsonBody(req);
     if (!bodyResult.ok) return bodyResult.response;
 
-    const partialValidation = blogSchema.partial().safeParse(bodyResult.data);
-    if (!partialValidation.success) {
-      return validationErrorResponse(partialValidation.error);
-    }
-
-    const existing = await prisma.blog.findUnique({ where: { id: idResult.data } });
+    await connectDB();
+    const existing = await Blog.findById(idResult.data).lean();
     if (!existing) return notFoundResponse("Blog");
 
-    const dataValidation = blogSchema.safeParse({
-      ...existing,
-      ...partialValidation.data,
-    });
-    if (!dataValidation.success) {
-      return validationErrorResponse(dataValidation.error);
-    }
+    const partialValidation = blogSchema.partial().safeParse(bodyResult.data);
+    if (!partialValidation.success) return validationErrorResponse(partialValidation.error);
 
-    const updated = await prisma.blog.update({
-      where: { id: idResult.data },
-      data: dataValidation.data
-    });
-    return NextResponse.json(updated);
-  } catch (error) {
+    const dataValidation = blogSchema.safeParse({ ...existing, ...partialValidation.data });
+    if (!dataValidation.success) return validationErrorResponse(dataValidation.error);
+
+    const updated = await Blog.findByIdAndUpdate(idResult.data, dataValidation.data, { new: true }).lean();
+    revalidatePath("/");
+    revalidatePath("/blogs");
+    revalidatePath(`/blogs/${idResult.data}`);
+    return NextResponse.json({ ...updated, id: (updated as any)._id.toString() });
+  } catch {
     return serverErrorResponse("Failed to update blog");
   }
 }
@@ -59,13 +55,15 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
     const idResult = validateResourceId((await props.params).id);
     if (!idResult.success) return invalidResourceIdResponse();
 
-    const deleted = await prisma.blog.deleteMany({
-      where: { id: idResult.data },
-    });
-    if (!deleted.count) return notFoundResponse("Blog");
+    await connectDB();
+    const deleted = await Blog.findByIdAndDelete(idResult.data);
+    if (!deleted) return notFoundResponse("Blog");
 
+    revalidatePath("/");
+    revalidatePath("/blogs");
+    revalidatePath(`/blogs/${idResult.data}`);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return serverErrorResponse("Failed to delete blog");
   }
 }

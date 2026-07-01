@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { About } from "@/lib/models";
 import { aboutSchema } from "@/lib/validations";
 import {
   readJsonBody,
@@ -10,9 +12,10 @@ import {
 
 export async function GET() {
   try {
-    const about = await prisma.about.findFirst();
-    return NextResponse.json(about || {});
-  } catch (error) {
+    await connectDB();
+    const about = await About.findOne().lean();
+    return NextResponse.json(about ? { ...about, id: (about as any)._id.toString() } : {});
+  } catch {
     return NextResponse.json({ error: "Failed to fetch about" }, { status: 500 });
   }
 }
@@ -26,23 +29,22 @@ export async function PUT(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = aboutSchema.safeParse(bodyResult.data);
-
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
+    if (!validation.success) return validationErrorResponse(validation.error);
 
     const data = validation.data;
-    const existing = await prisma.about.findFirst();
-    
-    let updated;
+    await connectDB();
+    const existing = await About.findOne();
+
+    let result;
     if (existing) {
-      updated = await prisma.about.update({ where: { id: existing.id }, data });
+      result = await About.findByIdAndUpdate(existing._id, data, { new: true }).lean();
     } else {
-      updated = await prisma.about.create({ data });
+      result = await new About(data).save();
+      result = result.toJSON();
     }
-    
-    return NextResponse.json(updated);
-  } catch (error) {
+    revalidatePath("/");
+    return NextResponse.json({ ...result, id: (result as any)._id?.toString() ?? (result as any).id });
+  } catch {
     return serverErrorResponse("Failed to update about info");
   }
 }

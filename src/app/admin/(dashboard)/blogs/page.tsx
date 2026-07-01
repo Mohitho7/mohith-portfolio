@@ -1,15 +1,16 @@
+import { connectDB } from "@/lib/mongodb";
+import { Blog } from "@/lib/models";
 import BlogsClient from "./BlogsClient";
 import styles from "../admin.module.css";
-import prisma from "@/lib/prisma";
 import { requireAdminPageSession } from "@/lib/admin-session";
 
 export const metadata = { title: "Manage Blogs | Admin" };
 
 export default async function AdminBlogsPage() {
   await requireAdminPageSession();
-  const initialBlogs = await prisma.blog.findMany({
-    orderBy: { date: "desc" }
-  });
+  await connectDB();
+  const blogDocs = await Blog.find().sort({ date: -1 }).lean();
+  const initialBlogs = JSON.parse(JSON.stringify(blogDocs));
 
   return (
     <div className={styles.dashboardOverview}>

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Skill } from "@/lib/models";
 import {
   invalidResourceIdResponse,
   notFoundResponse,
@@ -16,13 +18,13 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
     const idResult = validateResourceId((await props.params).id);
     if (!idResult.success) return invalidResourceIdResponse();
 
-    const deleted = await prisma.skill.deleteMany({
-      where: { id: idResult.data },
-    });
-    if (!deleted.count) return notFoundResponse("Skill");
+    await connectDB();
+    const deleted = await Skill.findByIdAndDelete(idResult.data);
+    if (!deleted) return notFoundResponse("Skill");
 
+    revalidatePath("/");
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return serverErrorResponse("Failed to delete skill");
   }
 }

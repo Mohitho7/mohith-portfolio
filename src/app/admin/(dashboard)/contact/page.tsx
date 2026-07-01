@@ -1,13 +1,16 @@
+import { connectDB } from "@/lib/mongodb";
+import { Contact } from "@/lib/models";
 import ContactForm from "./ContactForm";
 import styles from "../admin.module.css";
-import prisma from "@/lib/prisma";
 import { requireAdminPageSession } from "@/lib/admin-session";
 
 export const metadata = { title: "Manage Contact | Admin" };
 
 export default async function AdminContactPage() {
   await requireAdminPageSession();
-  const contact = await prisma.contact.findFirst();
+  await connectDB();
+  const contactDoc = await Contact.findOne().lean();
+  const contact = contactDoc ? JSON.parse(JSON.stringify(contactDoc)) : null;
 
   return (
     <div className={styles.dashboardOverview}>

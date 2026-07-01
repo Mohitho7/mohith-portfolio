@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Blog } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { blogSchema } from "@/lib/validations";
@@ -13,12 +15,12 @@ import {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const blogs = await prisma.blog.findMany({
-      where: session ? undefined : { isPublished: true },
-      orderBy: session ? { date: "desc" } : { order: "asc" }
-    });
-    return NextResponse.json(blogs);
-  } catch (error) {
+    await connectDB();
+    const filter = session ? {} : { isPublished: true };
+    const sort: any = session ? { date: -1 } : { order: 1 };
+    const blogs = await Blog.find(filter).sort(sort).lean();
+    return NextResponse.json(blogs.map((b: any) => ({ ...b, id: b._id.toString() })));
+  } catch {
     return NextResponse.json({ error: "Failed to fetch blogs" }, { status: 500 });
   }
 }
@@ -32,14 +34,15 @@ export async function POST(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = blogSchema.safeParse(bodyResult.data);
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
+    if (!validation.success) return validationErrorResponse(validation.error);
 
-    const data = validation.data;
-    const newBlog = await prisma.blog.create({ data });
-    return NextResponse.json(newBlog);
-  } catch (error) {
+    await connectDB();
+    const created = await new Blog(validation.data).save();
+    const obj = created.toJSON();
+    revalidatePath("/");
+    revalidatePath("/blogs");
+    return NextResponse.json({ ...obj, id: obj._id?.toString() ?? obj.id });
+  } catch {
     return serverErrorResponse("Failed to create blog");
   }
 }

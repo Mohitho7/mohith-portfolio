@@ -1,15 +1,16 @@
+import { connectDB } from "@/lib/mongodb";
+import { Testimonial } from "@/lib/models";
 import TestimonialsClient from "./TestimonialsClient";
 import styles from "../admin.module.css";
-import prisma from "@/lib/prisma";
 import { requireAdminPageSession } from "@/lib/admin-session";
 
 export const metadata = { title: "Manage Testimonials | Admin" };
 
 export default async function AdminTestimonialsPage() {
   await requireAdminPageSession();
-  const initialItems = await prisma.testimonial.findMany({
-    orderBy: { order: "asc" }
-  });
+  await connectDB();
+  const itemDocs = await Testimonial.find().sort({ order: 1 }).lean();
+  const initialItems = JSON.parse(JSON.stringify(itemDocs));
 
   return (
     <div className={styles.dashboardOverview}>

@@ -1,5 +1,6 @@
-export const dynamic = 'force-dynamic';
-import prisma from "@/lib/prisma";
+
+import { connectDB } from "@/lib/mongodb";
+import { Achievement } from "@/lib/models";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Image from "next/image";
@@ -9,9 +10,8 @@ export const metadata = {
 };
 
 export default async function AchievementsArchivePage() {
-  const achievements = await prisma.achievement.findMany({
-    orderBy: { order: "asc" }
-  });
+  await connectDB();
+  const achievements = await Achievement.find().sort({ order: 1 }).lean();
 
   return (
     <main style={{ width: "100%", overflowX: "hidden" }}>
@@ -22,9 +22,9 @@ export default async function AchievementsArchivePage() {
         <p style={{ color: "var(--text-muted)", marginBottom: "48px", fontSize: "1.1rem" }}>A comprehensive timeline of my milestones, awards, and certifications.</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginBottom: "80px" }}>
-          {achievements.map((item: any) => (
+          {(achievements as any[]).map((item) => (
             <div 
-              key={item.id}
+              key={item._id.toString()}
               className="glass-card"
               style={{ display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap", padding: "32px", position: "relative", overflow: "hidden" }}
             >

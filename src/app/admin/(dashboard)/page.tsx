@@ -1,4 +1,5 @@
-import prisma from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { Project, Achievement, Blog } from "@/lib/models";
 import Link from "next/link";
 import styles from "./admin.module.css";
 import { requireAdminPageSession } from "@/lib/admin-session";
@@ -9,10 +10,11 @@ export const metadata = {
 
 export default async function AdminDashboardOverview() {
   const session = await requireAdminPageSession();
+  await connectDB();
   const [projectCount, achievementCount, blogCount] = await Promise.all([
-    prisma.project.count(),
-    prisma.achievement.count(),
-    prisma.blog.count(),
+    Project.countDocuments(),
+    Achievement.countDocuments(),
+    Blog.countDocuments(),
   ]);
 
   return (

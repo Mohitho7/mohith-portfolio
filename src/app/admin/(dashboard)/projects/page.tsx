@@ -1,15 +1,16 @@
+import { connectDB } from "@/lib/mongodb";
+import { Project } from "@/lib/models";
 import ProjectsClient from "./ProjectsClient";
 import styles from "../admin.module.css";
-import prisma from "@/lib/prisma";
 import { requireAdminPageSession } from "@/lib/admin-session";
 
 export const metadata = { title: "Manage Projects | Admin" };
 
 export default async function AdminProjectsPage() {
   await requireAdminPageSession();
-  const initialProjects = await prisma.project.findMany({
-    orderBy: { order: "asc" }
-  });
+  await connectDB();
+  const projectDocs = await Project.find().sort({ order: 1 }).lean();
+  const initialProjects = JSON.parse(JSON.stringify(projectDocs));
 
   return (
     <div className={styles.dashboardOverview}>

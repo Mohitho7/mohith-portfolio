@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { TimelineItem } from "@/lib/models";
 import { timelineItemSchema } from "@/lib/validations";
 import {
   invalidResourceIdResponse,
@@ -22,30 +24,20 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     const bodyResult = await readJsonBody(req);
     if (!bodyResult.ok) return bodyResult.response;
 
-    const partialValidation = timelineItemSchema.partial().safeParse(bodyResult.data);
-    if (!partialValidation.success) {
-      return validationErrorResponse(partialValidation.error);
-    }
-
-    const existing = await prisma.timelineItem.findUnique({
-      where: { id: idResult.data },
-    });
+    await connectDB();
+    const existing = await TimelineItem.findById(idResult.data).lean();
     if (!existing) return notFoundResponse("Timeline item");
 
-    const dataValidation = timelineItemSchema.safeParse({
-      ...existing,
-      ...partialValidation.data,
-    });
-    if (!dataValidation.success) {
-      return validationErrorResponse(dataValidation.error);
-    }
+    const partialValidation = timelineItemSchema.partial().safeParse(bodyResult.data);
+    if (!partialValidation.success) return validationErrorResponse(partialValidation.error);
 
-    const updated = await prisma.timelineItem.update({
-      where: { id: idResult.data },
-      data: dataValidation.data,
-    });
-    return NextResponse.json(updated);
-  } catch (error) {
+    const dataValidation = timelineItemSchema.safeParse({ ...existing, ...partialValidation.data });
+    if (!dataValidation.success) return validationErrorResponse(dataValidation.error);
+
+    const updated = await TimelineItem.findByIdAndUpdate(idResult.data, dataValidation.data, { new: true }).lean();
+    revalidatePath("/");
+    return NextResponse.json({ ...updated, id: (updated as any)._id.toString() });
+  } catch {
     return serverErrorResponse("Failed to update timeline item");
   }
 }
@@ -58,13 +50,13 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
     const idResult = validateResourceId((await props.params).id);
     if (!idResult.success) return invalidResourceIdResponse();
 
-    const deleted = await prisma.timelineItem.deleteMany({
-      where: { id: idResult.data },
-    });
-    if (!deleted.count) return notFoundResponse("Timeline item");
+    await connectDB();
+    const deleted = await TimelineItem.findByIdAndDelete(idResult.data);
+    if (!deleted) return notFoundResponse("Timeline item");
 
+    revalidatePath("/");
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return serverErrorResponse("Failed to delete timeline item");
   }
 }

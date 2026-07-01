@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Contact } from "@/lib/models";
 import { contactSchema } from "@/lib/validations";
 import {
   readJsonBody,
@@ -10,9 +12,10 @@ import {
 
 export async function GET() {
   try {
-    const contact = await prisma.contact.findFirst();
-    return NextResponse.json(contact || {});
-  } catch (error) {
+    await connectDB();
+    const contact = await Contact.findOne().lean();
+    return NextResponse.json(contact ? { ...contact, id: (contact as any)._id.toString() } : {});
+  } catch {
     return NextResponse.json({ error: "Failed to fetch contact info" }, { status: 500 });
   }
 }
@@ -26,23 +29,22 @@ export async function PUT(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = contactSchema.safeParse(bodyResult.data);
-
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
+    if (!validation.success) return validationErrorResponse(validation.error);
 
     const data = validation.data;
-    const existing = await prisma.contact.findFirst();
-    
-    let updated;
+    await connectDB();
+    const existing = await Contact.findOne();
+
+    let result;
     if (existing) {
-      updated = await prisma.contact.update({ where: { id: existing.id }, data });
+      result = await Contact.findByIdAndUpdate(existing._id, data, { new: true }).lean();
     } else {
-      updated = await prisma.contact.create({ data });
+      result = await new Contact(data).save();
+      result = result.toJSON();
     }
-    
-    return NextResponse.json(updated);
-  } catch (error) {
+    revalidatePath("/");
+    return NextResponse.json({ ...result, id: (result as any)._id?.toString() ?? (result as any).id });
+  } catch {
     return serverErrorResponse("Failed to update contact info");
   }
 }

@@ -1,7 +1,7 @@
-
-
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Project } from "@/lib/models";
 import { projectSchema } from "@/lib/validations";
 import {
   invalidResourceIdResponse,
@@ -27,30 +27,21 @@ export async function PUT(
     const bodyResult = await readJsonBody(req);
     if (!bodyResult.ok) return bodyResult.response;
 
-    const partialValidation = projectSchema.partial().safeParse(bodyResult.data);
-    if (!partialValidation.success) {
-      return validationErrorResponse(partialValidation.error);
-    }
-
-    const existing = await prisma.project.findUnique({
-      where: { id: idResult.data },
-    });
+    await connectDB();
+    const existing = await Project.findById(idResult.data).lean();
     if (!existing) return notFoundResponse("Project");
 
-    const dataValidation = projectSchema.safeParse({
-      ...existing,
-      ...partialValidation.data,
-    });
-    if (!dataValidation.success) {
-      return validationErrorResponse(dataValidation.error);
-    }
+    const partialValidation = projectSchema.partial().safeParse(bodyResult.data);
+    if (!partialValidation.success) return validationErrorResponse(partialValidation.error);
 
-    const updated = await prisma.project.update({
-      where: { id: idResult.data },
-      data: dataValidation.data
-    });
-    return NextResponse.json(updated);
-  } catch (error) {
+    const dataValidation = projectSchema.safeParse({ ...existing, ...partialValidation.data });
+    if (!dataValidation.success) return validationErrorResponse(dataValidation.error);
+
+    const updated = await Project.findByIdAndUpdate(idResult.data, dataValidation.data, { new: true }).lean();
+    revalidatePath("/");
+    revalidatePath("/projects");
+    return NextResponse.json({ ...updated, id: (updated as any)._id.toString() });
+  } catch {
     return serverErrorResponse("Failed to update project");
   }
 }
@@ -63,13 +54,14 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
     const idResult = validateResourceId((await props.params).id);
     if (!idResult.success) return invalidResourceIdResponse();
 
-    const deleted = await prisma.project.deleteMany({
-      where: { id: idResult.data },
-    });
-    if (!deleted.count) return notFoundResponse("Project");
+    await connectDB();
+    const deleted = await Project.findByIdAndDelete(idResult.data);
+    if (!deleted) return notFoundResponse("Project");
 
+    revalidatePath("/");
+    revalidatePath("/projects");
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return serverErrorResponse("Failed to delete project");
   }
 }

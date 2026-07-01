@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Testimonial } from "@/lib/models";
 import { testimonialSchema } from "@/lib/validations";
 import {
   readJsonBody,
@@ -10,9 +12,10 @@ import {
 
 export async function GET() {
   try {
-    const items = await prisma.testimonial.findMany({ orderBy: { order: "asc" } });
-    return NextResponse.json(items);
-  } catch (error) {
+    await connectDB();
+    const items = await Testimonial.find().sort({ order: 1 }).lean();
+    return NextResponse.json(items.map((t: any) => ({ ...t, id: t._id.toString() })));
+  } catch {
     return NextResponse.json({ error: "Failed to fetch testimonials" }, { status: 500 });
   }
 }
@@ -26,14 +29,14 @@ export async function POST(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = testimonialSchema.safeParse(bodyResult.data);
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
+    if (!validation.success) return validationErrorResponse(validation.error);
 
-    const data = validation.data;
-    const newItem = await prisma.testimonial.create({ data });
-    return NextResponse.json(newItem);
-  } catch (error) {
+    await connectDB();
+    const created = await new Testimonial(validation.data).save();
+    const obj = created.toJSON();
+    revalidatePath("/");
+    return NextResponse.json({ ...obj, id: obj._id?.toString() ?? obj.id });
+  } catch {
     return serverErrorResponse("Failed to create testimonial");
   }
 }

@@ -19,17 +19,23 @@ export default function AdminLogin() {
     setLoading(true);
     setError("");
 
-    const res = await signIn("credentials", {
-      username,
-      password,
-      redirect: false,
-    });
+    try {
+      const res = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
+      });
 
-    if (res === undefined) {
-      setError("Invalid credentials. Try again.");
-      setLoading(false);
-    } else {
+      if (!res || res.error || !res.ok) {
+        setError("Invalid credentials. Try again.");
+        setLoading(false);
+        return;
+      }
+
       router.push("/admin");
+    } catch {
+      setError("Unable to sign in right now. Please try again.");
+      setLoading(false);
     }
   };
 

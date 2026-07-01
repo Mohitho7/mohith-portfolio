@@ -35,7 +35,11 @@ const optionalSafeNavigationHrefSchema = safeNavigationHrefSchema
   .optional()
   .or(z.literal(""));
 
-export const idParamSchema = z.string().trim().cuid("Invalid resource ID");
+// MongoDB uses 24-char hex ObjectIds
+export const idParamSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid resource ID");
 
 export const heroSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -104,7 +108,9 @@ export const skillSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   level: z.number().int().min(1).max(10).default(5),
   order: z.number().int().default(0),
-  categoryId: z.string().cuid("Invalid category ID"),
+  categoryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid category ID"),
 });
 
 export const testimonialSchema = z.object({

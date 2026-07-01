@@ -1,18 +1,23 @@
-export const dynamic = "force-dynamic";
-import prisma from "@/lib/prisma";
+
+import { connectDB } from "@/lib/mongodb";
+import { Hero, Project, Achievement, Blog, About, TimelineItem, Testimonial, Contact, SkillCategory, Skill } from "@/lib/models";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-import ProjectsSection from "@/components/ProjectsSection";
-import AchievementsSection from "@/components/AchievementsSection";
-import BlogsSection from "@/components/BlogsSection";
-import AboutSection, { AboutData } from "@/components/AboutSection";
-import SkillsSection from "@/components/SkillsSection";
-import TimelineSection from "@/components/TimelineSection";
-import TestimonialsSection from "@/components/TestimonialsSection";
-import ContactSection from "@/components/ContactSection";
+import nextDynamic from "next/dynamic";
+
+const ProjectsSection = nextDynamic(() => import("@/components/ProjectsSection"));
+const AchievementsSection = nextDynamic(() => import("@/components/AchievementsSection"));
+const BlogsSection = nextDynamic(() => import("@/components/BlogsSection"));
+const AboutSection = nextDynamic(() => import("@/components/AboutSection"));
+const SkillsSection = nextDynamic(() => import("@/components/SkillsSection"));
+const TimelineSection = nextDynamic(() => import("@/components/TimelineSection"));
+const TestimonialsSection = nextDynamic(() => import("@/components/TestimonialsSection"));
+const ContactSection = nextDynamic(() => import("@/components/ContactSection"));
 import Footer from "@/components/Footer";
 
 export default async function Home() {
+  await connectDB();
+
   const [
     hero,
     projects,
@@ -22,58 +27,56 @@ export default async function Home() {
     timeline,
     testimonials,
     contact,
-    categories,
+    rawCategories,
+    rawSkills,
   ] = await Promise.all([
-    prisma.hero.findFirst(),
-    prisma.project.findMany({
-      where: { isPinned: true },
-      orderBy: { order: "asc" },
-      take: 3,
-    }),
-    prisma.achievement.findMany({
-      where: { isPinned: true },
-      orderBy: { order: "asc" },
-      take: 3,
-    }),
-    prisma.blog.findMany({
-      where: { isPinned: true, isPublished: true },
-      orderBy: { order: "asc" },
-      take: 3,
-    }),
-    prisma.about.findFirst(),
-    prisma.timelineItem.findMany({ orderBy: { order: "asc" } }),
-    prisma.testimonial.findMany({ orderBy: { order: "asc" } }),
-    prisma.contact.findFirst(),
-    prisma.skillCategory.findMany({
-      include: { skills: { orderBy: { order: "asc" } } },
-      orderBy: { order: "asc" },
-    }),
+    Hero.findOne().lean(),
+    Project.find({ isPinned: true }).sort({ order: 1 }).limit(3).lean(),
+    Achievement.find({ isPinned: true }).sort({ order: 1 }).limit(3).lean(),
+    Blog.find({ isPinned: true, isPublished: true }).sort({ order: 1 }).limit(3).lean(),
+    About.findOne().lean(),
+    TimelineItem.find().sort({ order: 1 }).lean(),
+    Testimonial.find().sort({ order: 1 }).lean(),
+    Contact.findOne().lean(),
+    SkillCategory.find().sort({ order: 1 }).lean(),
+    Skill.find().sort({ order: 1 }).lean(),
   ]);
+
+  // Manual join for skills → categories
+  const categories = (rawCategories as any[]).map((cat) => ({
+    ...cat,
+    id: cat._id.toString(),
+    skills: (rawSkills as any[])
+      .filter((s) => s.categoryId?.toString() === cat._id.toString())
+      .map((s) => ({ ...s, id: s._id.toString(), categoryId: s.categoryId?.toString() })),
+  }));
+
+  const serialize = (v: any) => JSON.parse(JSON.stringify(v));
 
   return (
     <main style={{ width: "100%", overflowX: "hidden" }}>
       <Navbar />
-      <HeroSection heroData={hero} />
+      <HeroSection heroData={serialize(hero)} />
 
-      <AboutSection aboutData={about as AboutData} />
+      <AboutSection aboutData={serialize(about)} />
 
-      {categories.length > 0 && <SkillsSection categories={categories} />}
+      {categories.length > 0 && <SkillsSection categories={serialize(categories)} />}
 
-      {projects.length > 0 && <ProjectsSection projects={projects} />}
+      {projects.length > 0 && <ProjectsSection projects={serialize(projects)} />}
 
-      {timeline.length > 0 && <TimelineSection timelineItems={timeline} />}
+      {timeline.length > 0 && <TimelineSection timelineItems={serialize(timeline)} />}
 
       {achievements.length > 0 && (
-        <AchievementsSection achievements={achievements} />
+        <AchievementsSection achievements={serialize(achievements)} />
       )}
 
-      {blogs.length > 0 && <BlogsSection blogs={blogs} />}
+      {blogs.length > 0 && <BlogsSection blogs={serialize(blogs)} />}
 
       {testimonials.length > 0 && (
-        <TestimonialsSection testimonials={testimonials} />
+        <TestimonialsSection testimonials={serialize(testimonials)} />
       )}
 
-      <ContactSection contact={contact} />
+      <ContactSection contact={serialize(contact)} />
 
       <Footer />
     </main>

@@ -2,9 +2,10 @@ import "server-only";
 
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import prisma from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import type { Session } from "next-auth";
+import { connectDB } from "@/lib/mongodb";
+import { User } from "@/lib/models";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -36,9 +37,12 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: { username },
-        });
+        await connectDB();
+        const user = await User.findOne({ username }).lean<{
+          _id: { toString(): string };
+          username: string;
+          password: string;
+        }>();
 
         const isValidPassword = await bcrypt.compare(
           password,
@@ -48,7 +52,7 @@ export const authOptions: NextAuthOptions = {
         if (!user || !isValidPassword) return null;
 
         return {
-          id: user.id,
+          id: user._id.toString(),
           name: user.username,
         };
       },

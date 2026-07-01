@@ -1,4 +1,5 @@
-import prisma from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { About } from "@/lib/models";
 import AboutForm from "./AboutForm";
 import styles from "../admin.module.css";
 import { requireAdminPageSession } from "@/lib/admin-session";
@@ -7,7 +8,9 @@ export const metadata = { title: "Manage About | Admin" };
 
 export default async function AdminAboutPage() {
   await requireAdminPageSession();
-  const about = await prisma.about.findFirst();
+  await connectDB();
+  const aboutDoc = await About.findOne().lean();
+  const about = aboutDoc ? JSON.parse(JSON.stringify(aboutDoc)) : null;
 
   return (
     <div className={styles.dashboardOverview}>

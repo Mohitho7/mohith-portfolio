@@ -64,7 +64,7 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: a
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
             <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Project Title" required style={inputStyle} />
-            <input type="text" name="techStack" value={formData.techStack} onChange={handleChange} placeholder="Tech Stack (e.g. Next.js, Prisma, CSS)" required style={inputStyle} />
+            <input type="text" name="techStack" value={formData.techStack} onChange={handleChange} placeholder="Tech Stack (e.g. Next.js, MongoDB, CSS)" required style={inputStyle} />
           </div>
           <textarea name="description" value={formData.description} onChange={handleChange} placeholder="Project Description" required style={{...inputStyle, resize: "vertical", minHeight: "80px"}} />
           <textarea name="outcome" value={formData.outcome} onChange={handleChange} placeholder="Outcome / Impact" required style={{...inputStyle, resize: "vertical", minHeight: "60px"}} />

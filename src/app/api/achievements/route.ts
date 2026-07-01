@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Achievement } from "@/lib/models";
 import { achievementSchema } from "@/lib/validations";
 import {
   readJsonBody,
@@ -10,11 +12,10 @@ import {
 
 export async function GET() {
   try {
-    const achievements = await prisma.achievement.findMany({
-      orderBy: { order: "asc" }
-    });
-    return NextResponse.json(achievements);
-  } catch (error) {
+    await connectDB();
+    const achievements = await Achievement.find().sort({ order: 1 }).lean();
+    return NextResponse.json(achievements.map((a: any) => ({ ...a, id: a._id.toString() })));
+  } catch {
     return NextResponse.json({ error: "Failed to fetch achievements" }, { status: 500 });
   }
 }
@@ -28,15 +29,15 @@ export async function POST(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = achievementSchema.safeParse(bodyResult.data);
+    if (!validation.success) return validationErrorResponse(validation.error);
 
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
-
-    const data = validation.data;
-    const newItem = await prisma.achievement.create({ data });
-    return NextResponse.json(newItem);
-  } catch (error) {
+    await connectDB();
+    const created = await new Achievement(validation.data).save();
+    const obj = created.toJSON();
+    revalidatePath("/");
+    revalidatePath("/achievements");
+    return NextResponse.json({ ...obj, id: obj._id?.toString() ?? obj.id });
+  } catch {
     return serverErrorResponse("Failed to create achievement");
   }
 }

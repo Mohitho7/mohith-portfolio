@@ -1,15 +1,16 @@
+import { connectDB } from "@/lib/mongodb";
+import { Achievement } from "@/lib/models";
 import AchievementsClient from "./AchievementsClient";
 import styles from "../admin.module.css";
-import prisma from "@/lib/prisma";
 import { requireAdminPageSession } from "@/lib/admin-session";
 
 export const metadata = { title: "Manage Achievements | Admin" };
 
 export default async function AdminAchievementsPage() {
   await requireAdminPageSession();
-  const initialAchievements = await prisma.achievement.findMany({
-    orderBy: { order: "asc" }
-  });
+  await connectDB();
+  const achievementDocs = await Achievement.find().sort({ order: 1 }).lean();
+  const initialAchievements = JSON.parse(JSON.stringify(achievementDocs));
 
   return (
     <div className={styles.dashboardOverview}>

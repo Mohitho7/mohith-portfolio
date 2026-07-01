@@ -4,12 +4,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
-import { getSafeAssetUrl, getSafeExternalHref } from "@/lib/url-safety";
+import { getSafeAssetUrl, getSafeExternalHref, sanitizeTextContent } from "@/lib/url-safety";
 
 function ProjectModal({ project, onClose }: { project: any; onClose: () => void }) {
   const safeImageUrl = getSafeAssetUrl(project.imageUrl);
   const safeDemoLink = getSafeExternalHref(project.demoLink);
   const safeGithubLink = getSafeExternalHref(project.githubLink);
+  const safeTitle = sanitizeTextContent(project.title || "Untitled Project");
+  const safeTechStack = sanitizeTextContent(project.techStack || "");
+  const safeDescription = sanitizeTextContent(project.description || "");
+  const safeOutcome = sanitizeTextContent(project.outcome || "");
 
   return (
     <AnimatePresence>
@@ -36,7 +40,7 @@ function ProjectModal({ project, onClose }: { project: any; onClose: () => void 
             <div style={{ width: "100%", height: "240px", overflow: "hidden", borderRadius: "20px 20px 0 0", position: "relative" }}>
               <Image
                 src={safeImageUrl}
-                alt={project.title}
+                alt={safeTitle}
                 fill
                 sizes="(max-width: 600px) 100vw, 600px"
                 style={{ objectFit: "cover" }}
@@ -45,13 +49,15 @@ function ProjectModal({ project, onClose }: { project: any; onClose: () => void 
           )}
 
           <div style={{ padding: "32px" }}>
-            <p style={{ color: "var(--accent)", fontSize: "0.78rem", fontWeight: "600", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "12px" }}>{project.techStack}</p>
-            <h3 style={{ fontSize: "1.7rem", fontFamily: "var(--font-serif)", color: "var(--foreground)", marginBottom: "16px", lineHeight: "1.2" }}>{project.title}</h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "1rem", lineHeight: "1.7", marginBottom: "12px" }}>{project.description}</p>
+            {safeTechStack && (
+              <p style={{ color: "var(--accent)", fontSize: "0.78rem", fontWeight: "600", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "12px" }}>{safeTechStack}</p>
+            )}
+            <h3 style={{ fontSize: "1.7rem", fontFamily: "var(--font-serif)", color: "var(--foreground)", marginBottom: "16px", lineHeight: "1.2" }}>{safeTitle}</h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "1rem", lineHeight: "1.7", marginBottom: "12px" }}>{safeDescription}</p>
 
-            {project.outcome && (
+            {safeOutcome && (
               <div style={{ padding: "12px 16px", background: "rgba(212,175,55,0.07)", borderLeft: "3px solid var(--accent)", borderRadius: "0 8px 8px 0", marginBottom: "28px" }}>
-                <p style={{ color: "var(--foreground)", fontSize: "0.92rem", lineHeight: "1.6" }}>Outcome: {project.outcome}</p>
+                <p style={{ color: "var(--foreground)", fontSize: "0.92rem", lineHeight: "1.6" }}>Outcome: {safeOutcome}</p>
               </div>
             )}
 
@@ -93,6 +99,9 @@ export default function ProjectsSection({ projects }: { projects: any[] }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "28px", marginBottom: "40px" }}>
           {projects.map((proj, idx) => {
             const safeImageUrl = getSafeAssetUrl(proj.imageUrl);
+            const safeTitle = sanitizeTextContent(proj.title || "Untitled Project");
+            const safeTechStack = sanitizeTextContent(proj.techStack || "");
+            const safeDescription = sanitizeTextContent(proj.description || "");
 
             return (
               <motion.div
@@ -109,7 +118,7 @@ export default function ProjectsSection({ projects }: { projects: any[] }) {
                   <div style={{ width: "100%", height: "190px", overflow: "hidden", position: "relative" }}>
                     <Image
                       src={safeImageUrl}
-                      alt={proj.title}
+                      alt={safeTitle}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       style={{
@@ -126,9 +135,11 @@ export default function ProjectsSection({ projects }: { projects: any[] }) {
                   </div>
                 )}
                 <div style={{ padding: "20px 22px 24px" }}>
-                  <p style={{ color: "var(--accent)", fontSize: "0.75rem", fontWeight: "600", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>{proj.techStack}</p>
-                  <h3 style={{ fontSize: "1.25rem", fontFamily: "var(--font-serif)", color: "var(--foreground)", marginBottom: "10px" }}>{proj.title}</h3>
-                  <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: "1.55", marginBottom: "12px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{proj.description}</p>
+                  {safeTechStack && (
+                    <p style={{ color: "var(--accent)", fontSize: "0.75rem", fontWeight: "600", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>{safeTechStack}</p>
+                  )}
+                  <h3 style={{ fontSize: "1.25rem", fontFamily: "var(--font-serif)", color: "var(--foreground)", marginBottom: "10px" }}>{safeTitle}</h3>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: "1.55", marginBottom: "12px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{safeDescription}</p>
                   <span style={{ color: "var(--accent)", fontSize: "0.82rem", fontWeight: "600" }}>View Details -</span>
                 </div>
               </motion.div>

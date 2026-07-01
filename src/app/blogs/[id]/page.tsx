@@ -1,18 +1,25 @@
-import prisma from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { Blog } from "@/lib/models";
 import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Image from "next/image";
+import mongoose from "mongoose";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const blog = await prisma.blog.findUnique({ where: { id } });
-  return { title: blog ? `${blog.title} | Portfolio` : "Blog Not Found" };
+  if (!mongoose.Types.ObjectId.isValid(id)) return { title: "Blog Not Found" };
+  await connectDB();
+  const blog = await Blog.findById(id).lean();
+  return { title: blog ? `${(blog as any).title} | Portfolio` : "Blog Not Found" };
 }
 
 export default async function BlogSinglePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const blog = await prisma.blog.findUnique({ where: { id } });
+  if (!mongoose.Types.ObjectId.isValid(id)) notFound();
+  
+  await connectDB();
+  const blog = await Blog.findById(id).lean() as any;
   
   if (!blog || !blog.isPublished) {
     notFound();

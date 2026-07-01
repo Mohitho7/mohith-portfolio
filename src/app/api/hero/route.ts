@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { connectDB } from "@/lib/mongodb";
+import { Hero } from "@/lib/models";
 import { heroSchema } from "@/lib/validations";
 import {
   readJsonBody,
@@ -10,9 +12,10 @@ import {
 
 export async function GET() {
   try {
-    const hero = await prisma.hero.findFirst();
-    return NextResponse.json(hero || {});
-  } catch (error) {
+    await connectDB();
+    const hero = await Hero.findOne().lean();
+    return NextResponse.json(hero ? { ...hero, id: (hero as any)._id.toString() } : {});
+  } catch {
     return NextResponse.json({ error: "Failed to fetch hero text" }, { status: 500 });
   }
 }
@@ -26,22 +29,22 @@ export async function PUT(req: Request) {
     if (!bodyResult.ok) return bodyResult.response;
 
     const validation = heroSchema.safeParse(bodyResult.data);
-
-    if (!validation.success) {
-      return validationErrorResponse(validation.error);
-    }
+    if (!validation.success) return validationErrorResponse(validation.error);
 
     const data = validation.data;
-    const existing = await prisma.hero.findFirst();
-    
-    let updated;
+    await connectDB();
+    const existing = await Hero.findOne();
+
+    let result;
     if (existing) {
-      updated = await prisma.hero.update({ where: { id: existing.id }, data });
+      result = await Hero.findByIdAndUpdate(existing._id, data, { new: true }).lean();
     } else {
-      updated = await prisma.hero.create({ data });
+      result = await new Hero(data).save();
+      result = result.toJSON();
     }
-    return NextResponse.json(updated);
-  } catch (error) {
+    revalidatePath("/");
+    return NextResponse.json({ ...result, id: (result as any)._id?.toString() ?? (result as any).id });
+  } catch {
     return serverErrorResponse("Failed to update hero");
   }
 }
